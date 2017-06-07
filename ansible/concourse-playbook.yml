@@ -1,0 +1,189 @@
+---
+- hosts: all
+  tasks:
+   
+    - name: Install Homebrew General Packages
+      homebrew:
+        name: "{{ item }}"
+        state: present
+        update_homebrew: yes
+      with_items:
+        - docker
+        - docker-machine
+        - python3
+        - nginx
+   
+    - name: Install Homebrew Casks
+      homebrew_cask:
+        name: "{{ item }}"
+        state: present
+        update_homebrew: yes
+      with_items:
+        - virtualbox
+
+    - name: Remove docker-py (Otherwise It Can Cause Trouble...)
+      pip:
+        name: docker-py
+        state: absent
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Install Pip Docker Packages
+      pip:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "docker-compose==1.12.0"
+        - docker
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Create docker-machine "default"
+      shell: if docker-machine ls | tail -n 1 | xargs echo -n | grep -q "default"; then echo -n 1; else echo "Creating default docker-machine" && docker-machine create --driver virtualbox default; fi
+      register: command_result
+      changed_when: command_result.stdout != 1
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Copy Docker Compose Files
+      copy:
+        src: ../docker/docker-compose.yml
+        dest: ~/workspace/concourse/
+    
+    - name: Install Concourse Darwin Binary
+      shell: curl -Lo concourse https://github.com/concourse/concourse/releases/download/v3.1.1/concourse_darwin_amd64 && chmod u+x concourse && mv concourse /usr/local/bin
+      args:
+        creates: /usr/local/bin/concourse
+    
+    - name: Create Concourse Project Directory
+      file:
+        path: ~/workspace/concourse
+        state: directory 
+
+    - name: Create Concourse Web Key Directory
+      file:
+        path: ~/workspace/concourse/keys/web
+        state: directory 
+    
+    - name: Create Concourse Worker Key Directory
+      file:
+        path: ~/workspace/concourse/keys/worker
+        state: directory 
+    
+    - name: Generate Host Key
+      shell: ssh-keygen -t rsa -f tsa_host_key -N ''
+      args:
+        chdir: ~/workspace/concourse/keys/web
+        creates: tsa_host_key
+    
+    - name: Generate Session Signing Key
+      shell: ssh-keygen -t rsa -f session_signing_key -N ''
+      args:
+        chdir: ~/workspace/concourse/keys/web
+        creates: session_signing_key
+    
+    - name: Generate Worker Key
+      shell: ssh-keygen -t rsa -f worker_key -N ''
+      args:
+        chdir: ~/workspace/concourse/keys/worker
+        creates: worker_key
+    
+    - name: Create authorized_keys
+      shell: cp ../worker/worker_key.pub authorized_worker_keys
+      args:
+        chdir: ~/workspace/concourse/keys/web
+        creates: authorized_worker_keys
+
+    - name: Start Default docker-machine
+      shell: if docker-machine ls | tail -n 1 | xargs echo -n | grep -i -q "running"; then echo -n 1; else echo "Restarting docker-machine" && docker-machine restart default; fi
+      register: command_result
+      changed_when: command_result.stdout != 1
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Read docker-machine ip
+      shell: docker-machine ip
+      register: DOCKER_MACHINE_IP_RESULT
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Read DOCKER_TLS_VERIFY Env Var
+      shell: docker-machine env | grep DOCKER_TLS_VERIFY | sed 's/export DOCKER_TLS_VERIFY=//' | sed 's/"//g'
+      register: DOCKER_TLS_VERIFY_RESULT
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Read DOCKER_HOST Env Var
+      shell: docker-machine env | grep DOCKER_HOST | sed 's/export DOCKER_HOST=//' | sed 's/"//g'
+      register: DOCKER_HOST_RESULT
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Read DOCKER_CERT_PATH Env Var
+      shell: docker-machine env | grep DOCKER_CERT_PATH | sed 's/export DOCKER_CERT_PATH=//' | sed 's/"//g'
+      register: DOCKER_CERT_PATH_RESULT
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Read DOCKER_MACHINE_NAME Env Var
+      shell: docker-machine env | grep DOCKER_MACHINE_NAME | sed 's/export DOCKER_MACHINE_NAME=//' | sed 's/"//g'
+      register: DOCKER_MACHINE_NAME_RESULT
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Start Concourse Docker Containers
+      docker_service:
+        project_src: ~/workspace/concourse/
+        state: present
+        restarted: true
+      environment:
+        CONCOURSE_EXTERNAL_URL: "{{ DOCKER_MACHINE_IP_RESULT.stdout }}"
+        DOCKER_TLS_VERIFY: "{{ DOCKER_TLS_VERIFY_RESULT.stdout }}"
+        DOCKER_HOST: "{{ DOCKER_HOST_RESULT.stdout }}"
+        DOCKER_CERT_PATH: "{{ DOCKER_CERT_PATH_RESULT.stdout }}"
+        DOCKER_MACHINE_NAME: "{{ DOCKER_MACHINE_NAME_RESULT.stdout }}"
+
+    - name: Kill Stale MacOS Concourse Workers
+      shell: if ps aux | grep -v 'grep' | grep /usr/local/bin/concourse; then ps aux | grep -v 'grep' | grep /usr/local/bin/concourse | awk '{print $2}' | xargs kill; fi 
+      become: true
+
+    - name: Start MacOS Concourse Worker
+      shell: nohup /usr/local/bin/concourse worker --work-dir /opt/concourse/worker --tsa-host {{ DOCKER_MACHINE_IP_RESULT.stdout }} --tsa-public-key /Users/pivotal/workspace/concourse/keys/web/tsa_host_key.pub --tsa-worker-private-key /Users/pivotal/workspace/concourse/keys/worker/worker_key &>/dev/null &
+      become: true
+
+    - name: Update "docker-machine-host" In Hosts File
+      lineinfile:
+        path: /etc/hosts
+        regexp: 'docker-machine-host$'
+        line: '{{ DOCKER_MACHINE_IP_RESULT.stdout }} docker-machine-host'
+      become: true
+
+    - name: Copy Nginx Files
+      copy:
+        src: ../nginx/concourse-host
+        dest: /usr/local/etc/nginx/servers/
+
+    - name: Create Nginx Log Directory
+      file:
+        path: /var/log/nginx
+        state: directory 
+      become: true
+
+    - name: Create Nginx Access Log
+      file:
+        path: /var/log/nginx/access.log
+        state: touch
+        mode: "ugo+rwx"
+      become: true
+
+    - name: Create Nginx Error Log
+      file:
+        path: /var/log/nginx/error.log
+        state: touch
+        mode: "ugo+rwx"
+      become: true
+
+    - name: Enable Nginx 
+      shell: brew services restart nginx
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
