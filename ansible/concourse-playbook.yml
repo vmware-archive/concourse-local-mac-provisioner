@@ -33,7 +33,8 @@
         name: "{{ item }}"
         state: present
       with_items:
-        - "docker-compose==1.12.0"
+#        - "docker-compose==1.12.0"
+        - docker-compose
         - docker
       environment:
         PATH: /usr/local/bin/:/usr/bin:/bin
@@ -51,7 +52,7 @@
         dest: ~/workspace/concourse/
     
     - name: Install Concourse Darwin Binary
-      shell: curl -Lo concourse https://github.com/concourse/concourse/releases/download/v3.1.1/concourse_darwin_amd64 && chmod u+x concourse && mv concourse /usr/local/bin
+      shell: curl -Lo concourse https://github.com/concourse/concourse/releases/download/v3.0.1/concourse_darwin_amd64 && chmod u+x concourse && mv concourse /usr/local/bin
       args:
         creates: /usr/local/bin/concourse
     
@@ -89,10 +90,16 @@
         creates: worker_key
     
     - name: Create authorized_keys
-      shell: cp ../worker/worker_key.pub authorized_worker_keys
+      shell: cp worker/worker_key.pub web/authorized_worker_keys
       args:
-        chdir: ~/workspace/concourse/keys/web
+        chdir: ~/workspace/concourse/keys/
         creates: authorized_worker_keys
+
+    - name: Copy Host Key Into Worker Key Directory
+      shell: cp web/tsa_host_key.pub worker/tsa_host_key.pub
+      args:
+        chdir: ~/workspace/concourse/keys/
+        creates: tsa_host_key.pub
 
     - name: Start Default docker-machine
       shell: if docker-machine ls | tail -n 1 | xargs echo -n | grep -i -q "running"; then echo -n 1; else echo "Restarting docker-machine" && docker-machine restart default; fi
@@ -135,7 +142,7 @@
       docker_service:
         project_src: ~/workspace/concourse/
         state: present
-        restarted: true
+        recreate: always
       environment:
         CONCOURSE_EXTERNAL_URL: "{{ DOCKER_MACHINE_IP_RESULT.stdout }}"
         DOCKER_TLS_VERIFY: "{{ DOCKER_TLS_VERIFY_RESULT.stdout }}"
