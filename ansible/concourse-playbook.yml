@@ -33,13 +33,12 @@
         name: "{{ item }}"
         state: present
       with_items:
-#        - "docker-compose==1.12.0"
         - docker-compose
         - docker
       environment:
         PATH: /usr/local/bin/:/usr/bin:/bin
 
-    - name: Create docker-machine "default"
+    - name: Create docker-machine "default" If It Doesn't Exist
       shell: if docker-machine ls | tail -n 1 | xargs echo -n | grep -q "default"; then echo -n 1; else echo "Creating default docker-machine" && docker-machine create --driver virtualbox default; fi
       register: command_result
       changed_when: command_result.stdout != 1
@@ -101,7 +100,7 @@
         chdir: ~/workspace/concourse/keys/
         creates: tsa_host_key.pub
 
-    - name: Start Default docker-machine
+    - name: Start Default docker-machine If Not Already Running
       shell: if docker-machine ls | tail -n 1 | xargs echo -n | grep -i -q "running"; then echo -n 1; else echo "Restarting docker-machine" && docker-machine restart default; fi
       register: command_result
       changed_when: command_result.stdout != 1
@@ -138,7 +137,7 @@
       environment:
         PATH: /usr/local/bin/:/usr/bin:/bin
 
-    - name: Start Concourse Docker Containers
+    - name: Recreate Concourse Docker Containers
       docker_service:
         project_src: ~/workspace/concourse/
         state: present
@@ -176,14 +175,14 @@
         state: directory 
       become: true
 
-    - name: Create Nginx Access Log
+    - name: Touch Nginx Access Log
       file:
         path: /var/log/nginx/access.log
         state: touch
         mode: "ugo+rwx"
       become: true
 
-    - name: Create Nginx Error Log
+    - name: Touch Nginx Error Log
       file:
         path: /var/log/nginx/error.log
         state: touch
