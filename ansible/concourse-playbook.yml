@@ -57,7 +57,6 @@
       file:
         path: ~/concourse/postgres-data
         state: directory
-        mode: "ugo+rwx"
 
     - name: Create Concourse Web Key Directory
       file:
@@ -159,9 +158,14 @@
       environment:
         PATH: /usr/local/bin/:/usr/bin:/bin
 
+    # docker_service project_src doesn't understand ~/concourse/docker, so this is a workaround
+    - name: Get Relative Concourse Directory
+      shell: cd ~/concourse && pwd
+      register: CONCOURSE_PWD_RESULT
+
     - name: Recreate Concourse Docker Containers
       docker_service:
-        project_src: /Users/pivotal/concourse/docker
+        project_src: "{{ CONCOURSE_PWD_RESULT.stdout }}/docker"
         state: present
         recreate: always
       environment:
@@ -177,12 +181,32 @@
       args:
         creates: /usr/local/bin/concourse
 
+    - name: Create MacOS Concourse Worker Log Directory
+      file:
+        path: /var/log/concourse
+        state: directory 
+      become: true
+
+    - name: Touch MacOS Concourse Worker Access Log
+      file:
+        path: /var/log/concourse/mac-worker-stdout.log
+        state: touch
+        mode: "ugo+rwx"
+      become: true
+
+    - name: Touch MacOS Concourse Worker Error Log
+      file:
+        path: /var/log/concourse/mac-worker-stderr.log
+        state: touch
+        mode: "ugo+rwx"
+      become: true
+
     - name: Kill Stale MacOS Concourse Workers
       shell: if ps aux | grep -v 'grep' | grep /usr/local/bin/concourse; then ps aux | grep -v 'grep' | grep /usr/local/bin/concourse | awk '{print $2}' | xargs kill; fi 
       become: true
 
     - name: Start MacOS Concourse Worker
-      shell: nohup /usr/local/bin/concourse worker --work-dir /opt/concourse/worker --tsa-host {{ DOCKER_MACHINE_IP_RESULT.stdout }} --tsa-public-key ~/concourse/keys/worker/tsa_host_key.pub --tsa-worker-private-key ~/concourse/keys/worker/worker_key &>/dev/null &
+      shell: nohup /usr/local/bin/concourse worker --work-dir /opt/concourse/worker --tsa-host {{ DOCKER_MACHINE_IP_RESULT.stdout }} --tsa-public-key "{{ CONCOURSE_PWD_RESULT.stdout }}"/keys/worker/tsa_host_key.pub --tsa-worker-private-key "{{ CONCOURSE_PWD_RESULT.stdout }}"/keys/worker/worker_key >> /var/log/concourse/mac-worker-stdout.log 2> /var/log/concourse/mac-worker-stderr.log &
       become: true
 
     ####
