@@ -15,7 +15,10 @@ services:
     command: web
     depends_on: [concourse-db]
     ports: ["8080:8080", "2222:2222"]
-    volumes: ["/Users/pivotal/workspace/concourse/keys/web:/concourse-keys"]
+    volumes: [
+      "/Users/pivotal/workspace/concourse/keys/web:/concourse-keys",
+      "/Users/pivotal/workspace/concourse/postgres-data:/var/lib/postgresql/data"
+    ]
     restart: unless-stopped # required so that it retries until conocurse-db comes up
     environment:
       CONCOURSE_BASIC_AUTH_USERNAME: concourse
