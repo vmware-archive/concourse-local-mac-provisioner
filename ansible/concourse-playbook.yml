@@ -13,6 +13,7 @@
       with_items:
         - docker
         - docker-machine
+        - docker-compose
         - python3
         - nginx
    
@@ -23,23 +24,6 @@
         update_homebrew: yes
       with_items:
         - virtualbox
-
-    - name: Remove docker-py (Otherwise It Can Cause Trouble...)
-      pip:
-        name: docker-py
-        state: absent
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
-
-    - name: Install Pip Docker Packages
-      pip:
-        name: "{{ item }}"
-        state: present
-      with_items:
-        - docker-compose
-        - docker
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
 
     ####
     # Concourse Directories
@@ -162,17 +146,14 @@
       register: CONCOURSE_PWD_RESULT
 
     - name: Recreate Concourse Docker Containers
-      docker_service:
-        project_src: "{{ CONCOURSE_PWD_RESULT.stdout }}/docker"
-        state: present
-        recreate: always
+      shell: cd {{ CONCOURSE_PWD_RESULT.stdout }}/docker && docker-compose stop && docker-compose rm -f && docker-compose up -d
       environment:
         CONCOURSE_EXTERNAL_URL: "{{ DOCKER_MACHINE_IP_RESULT.stdout }}"
         DOCKER_TLS_VERIFY: "{{ DOCKER_TLS_VERIFY_RESULT.stdout }}"
         DOCKER_HOST: "{{ DOCKER_HOST_RESULT.stdout }}"
         DOCKER_CERT_PATH: "{{ DOCKER_CERT_PATH_RESULT.stdout }}"
         DOCKER_MACHINE_NAME: "{{ DOCKER_MACHINE_NAME_RESULT.stdout }}"
-      become: true
+        PATH: /usr/local/bin:/usr/bin:/bin
 
     - name: Install Concourse Darwin Binary
       shell: curl -Lo concourse https://github.com/concourse/concourse/releases/download/v3.0.1/concourse_darwin_amd64 && chmod u+x concourse && mv concourse /usr/local/bin
