@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   concourse-db:
@@ -19,7 +19,7 @@ services:
       - "8080:8080"
       - "2222:2222"
     volumes: ["./../keys/web:/concourse-keys"]
-    restart: unless-stopped # required so that it retries until conocurse-db comes up
+    restart: unless-stopped
     environment:
       CONCOURSE_BASIC_AUTH_USERNAME: concourse
       CONCOURSE_BASIC_AUTH_PASSWORD: changeme
