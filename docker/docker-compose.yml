@@ -6,8 +6,8 @@ services:
     volumes: ["./../postgres-data:/var/lib/postgresql/data"]
     environment:
       POSTGRES_DB: concourse
-      POSTGRES_USER: concourse
-      POSTGRES_PASSWORD: changeme
+      POSTGRES_USER: "${CONCOURSE_USERNAME}"
+      POSTGRES_PASSWORD: "${CONCOURSE_PASSWORD}"
       PGDATA: /database
 
   concourse-web:
@@ -21,12 +21,12 @@ services:
     volumes: ["./../keys/web:/concourse-keys"]
     restart: unless-stopped
     environment:
-      CONCOURSE_BASIC_AUTH_USERNAME: concourse
-      CONCOURSE_BASIC_AUTH_PASSWORD: changeme
+      CONCOURSE_BASIC_AUTH_USERNAME: "${CONCOURSE_USERNAME}"
+      CONCOURSE_BASIC_AUTH_PASSWORD: "${CONCOURSE_PASSWORD}"
       CONCOURSE_EXTERNAL_URL: "${CONCOURSE_EXTERNAL_URL}"
       CONCOURSE_POSTGRES_HOST: concourse-db
-      CONCOURSE_POSTGRES_USER: concourse
-      CONCOURSE_POSTGRES_PASSWORD: changeme
+      CONCOURSE_POSTGRES_USER: "${CONCOURSE_USERNAME}"
+      CONCOURSE_POSTGRES_PASSWORD: "${CONCOURSE_PASSWORD}"
       CONCOURSE_POSTGRES_DATABASE: concourse
 
   concourse-worker:

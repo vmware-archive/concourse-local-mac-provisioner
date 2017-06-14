@@ -1,7 +1,25 @@
----
 - hosts: all
+
+  ####
+  # Concourse Authentication
+  ####
+  vars_prompt:
+    - name: "CONCOURSE_USERNAME"
+      prompt: "desired concourse username"
+      confirm: no
+      private: no
+      register: CONCOURSE_USERNAME
+      default: pivotal
+
+    - name: "CONCOURSE_PASSWORD"
+      prompt: "desired concourse password"
+      private: yes
+      confirm: yes
+      register: CONCOURSE_PASSWORD
+      default: pivotal
+
   tasks:
-   
+
     ####
     # Packages
     ####
@@ -152,6 +170,8 @@
         DOCKER_HOST: "{{ DOCKER_HOST_RESULT.stdout }}"
         DOCKER_CERT_PATH: "{{ DOCKER_CERT_PATH_RESULT.stdout }}"
         DOCKER_MACHINE_NAME: "{{ DOCKER_MACHINE_NAME_RESULT.stdout }}"
+        CONCOURSE_USERNAME: "{{ CONCOURSE_USERNAME }}"
+        CONCOURSE_PASSWORD: "{{ CONCOURSE_PASSWORD }}"
         PATH: /usr/local/bin:/usr/bin:/bin
 
     - name: Install Concourse Darwin Binary
