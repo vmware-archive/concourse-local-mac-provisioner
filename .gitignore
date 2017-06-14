@@ -1,1 +1,5 @@
+# Intellij noise
 .idea
+
+# Ansible retry files
+*.retry
