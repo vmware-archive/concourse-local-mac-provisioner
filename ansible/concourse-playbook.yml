@@ -8,14 +8,12 @@
       prompt: "desired concourse username"
       confirm: no
       private: no
-      register: CONCOURSE_USERNAME
       default: pivotal
 
     - name: "CONCOURSE_PASSWORD"
       prompt: "desired concourse password"
       private: yes
       confirm: yes
-      register: CONCOURSE_PASSWORD
       default: pivotal
 
   tasks:
