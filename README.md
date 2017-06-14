@@ -18,12 +18,10 @@ You will need sudo access either way, and you will also need ssh access to the t
 
 This tool requires the following packages installed on the control machine in order to run:
   * [ansible](http://docs.ansible.com/ansible/)
-  * [python3](https://www.python.org/)
 
 It also requires the following packages to be installed on the target machine:
   * [virtualbox](https://www.virtualbox.org/)
   * [xcode command line tools](https://developer.apple.com/xcode/)
-  * [python3](https://www.python.org/)
 
 ----
 
