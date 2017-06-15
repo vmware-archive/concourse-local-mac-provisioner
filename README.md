@@ -22,6 +22,7 @@ This tool requires the following packages installed on the control machine in or
 It also requires the following packages to be installed on the target machine:
   * [virtualbox](https://www.virtualbox.org/)
   * [xcode command line tools](https://developer.apple.com/xcode/)
+  * [homebrew](https://brew.sh)
 
 ----
 
