@@ -35,6 +35,8 @@ git clone https://github.com/pivotal-tokyo/concourse-local-mac-provisioner
 cd concourse-local-mac-provisioner/ansible
 
 ./run-concourse-mac-provisioner.sh localhost
+
+# Concourse is now running at http://localhost:8000
 ```
 
 *Control machine deploys to target machine (e.g. sushi.foobar.com)*
@@ -45,7 +47,27 @@ git clone https://github.com/pivotal-tokyo/concourse-local-mac-provisioner
 cd concourse-local-mac-provisioner/ansible
 
 ./run-concourse-mac-provisioner.sh sushi.foobar.com
+
+# Concourse is now running at http://sushi.foobar.com:8000
 ```
+
+## Logs
+
+Logs can be accessed on the target machine as follows:
+
+  * Nginx
+    * Standard Output Log: /var/log/nginx/access.log
+    * Standard Error Log: /var/log/nginx/error.log
+  * Concourse Mac Worker
+    * Standard Output Log: /var/log/concourse/mac-worker-stdout.log
+    * Standard Error Log: /var/log/concourse/mac-worker-stderr.log
+  * Concourse Web
+    * docker logs docker_concourse-web_1
+  * Concourse PostgresDB
+    * docker logs docker_concourse-db_1
+  * Concourse Linux Worker
+    * docker logs docker_concourse-worker_1
+  
 
 ## Errata
 
