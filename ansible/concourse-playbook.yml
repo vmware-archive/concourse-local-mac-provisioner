@@ -173,9 +173,10 @@
         PATH: /usr/local/bin:/usr/bin:/bin
 
     - name: Install Concourse Darwin Binary
-      shell: curl -Lo concourse https://github.com/concourse/concourse/releases/download/v3.0.1/concourse_darwin_amd64 && chmod u+x concourse && mv concourse /usr/local/bin
-      args:
-        creates: /usr/local/bin/concourse
+      get_url:
+        url: https://github.com/concourse/concourse/releases/download/v3.0.1/concourse_darwin_amd64
+        dest: /usr/local/bin/concourse
+        mode: ugo+x,u+rw,g+r
 
     - name: Create MacOS Concourse Worker Log Directory
       file:
