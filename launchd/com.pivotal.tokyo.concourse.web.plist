@@ -22,11 +22,9 @@
         <string>pivotal</string>
     </array>
     <key>StandardOutPath</key>
-    <string>/Users/pivotal/concourse-web-out.log</string>
+    <string>/var/log/concourse/web-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/pivotal/concourse-web-err.log</string>
-    <key>UserName</key>
-    <string>pivotal</string>
+    <string>/var/log/concourse/web-stderr.log</string>
     <key>KeepAlive</key>
     <true/>
 </dict>

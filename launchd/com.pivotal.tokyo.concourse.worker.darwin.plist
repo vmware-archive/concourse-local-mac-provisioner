@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.pivotal.tokyo.concourse.worker</string>
+    <string>com.pivotal.tokyo.concourse.worker.darwin</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/concourse</string>
@@ -18,11 +18,9 @@
         <string>/Users/pivotal/concourse/keys/worker_key</string>
     </array>
     <key>StandardOutPath</key>
-    <string>/Users/pivotal/concourse-worker-out.log</string>
+    <string>/var/log/concourse/darwin-worker-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/pivotal/concourse-worker-err.log</string>
-    <key>UserName</key>
-    <string>pivotal</string>
+    <string>/var/log/concourse/darwin-worker-stderr.log</string>
     <key>KeepAlive</key>
     <true/>
 </dict>

@@ -24,6 +24,12 @@
         group: staff
         mode: "u+rwx,go+rx"
 
+    - name: Create Concourse Log Directory
+      file:
+        path: /var/log/concourse
+        state: directory
+      become: true
+
     ####
     # Concourse Keys
     ####
@@ -39,17 +45,17 @@
         chdir: ~/workspace/concourse/keys
         creates: session_signing_key
 
-    - name: Generate Worker Key
-      shell: ssh-keygen -t rsa -f worker_key -N ''
+    - name: Generate Darwin Worker Key
+      shell: ssh-keygen -t rsa -f darwin_worker_key -N ''
       args:
         chdir: ~/workspace/concourse/keys
-        creates: worker_key
+        creates: darwin_worker_key
 
     - name: Create authorized_keys
-      shell: cp worker_key.pub authorized_worker_keys
+      shell: cp darwin_worker_key.pub authorized_darwin_worker_keys
       args:
         chdir: ~/workspace/concourse/keys
-        creates: authorized_worker_keys
+        creates: authorized_darwin_worker_keys
 
     ####
     # Concourse Server & Workers
@@ -77,10 +83,10 @@
         dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist
       become: true
 
-    - name: Install Concourse Worker Launchd Service
+    - name: Install Concourse Darwin Worker Launchd Service
       copy:
-        src: ../launchd/com.pivotal.tokyo.concourse.worker.plist
-        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.plist
+        src: ../launchd/com.pivotal.tokyo.concourse.worker.darwin.plist
+        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist
       become: true
 
     - name: Stop MacOS Concourse Web
@@ -95,14 +101,14 @@
       register: launchctl_web_load_result
       changed_when: "launchctl_web_load_result.stdout != ''"
 
-    - name: Stop MacOS Concourse Worker
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.plist && echo "STOPPING CONCOURSE WORKER"; fi
+    - name: Stop MacOS Concourse Darwin Worker
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.darwin) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STOPPING CONCOURSE DARWIN WORKER"; fi
       become: true
-      register: launchctl_worker_unload_result
-      changed_when: "launchctl_worker_unload_result.stdout != ''"
+      register: launchctl_darwin_worker_unload_result
+      changed_when: "launchctl_darwin_worker_unload_result.stdout != ''"
 
-    - name: Start MacOS Concourse Worker
-      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.plist && echo "STARTING CONCOURSE WORKER"
+    - name: Start MacOS Concourse Darwin Worker
+      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STARTING CONCOURSE DARWIN WORKER"
       become: true
-      register: launchctl_worker_load_result
-      changed_when: "launchctl_worker_load_result.stdout != ''"
+      register: launchctl_darwin_worker_load_result
+      changed_when: "launchctl_darwin_worker_load_result.stdout != ''"
