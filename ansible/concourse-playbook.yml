@@ -1,21 +1,5 @@
 - hosts: all
 
-  ####
-  # Concourse Authentication
-  ####
-  vars_prompt:
-    - name: "CONCOURSE_USERNAME"
-      prompt: "desired concourse username"
-      confirm: no
-      private: no
-      default: pivotal
-
-    - name: "CONCOURSE_PASSWORD"
-      prompt: "desired concourse password"
-      private: yes
-      confirm: yes
-      default: pivotal
-
   tasks:
 
     ####
@@ -27,221 +11,98 @@
         state: present
         update_homebrew: yes
       with_items:
-        - docker
-        - docker-machine
-        - docker-compose
-        - nginx
-   
-    - name: Install Homebrew Casks
-      homebrew_cask:
-        name: "{{ item }}"
-        state: present
-        update_homebrew: yes
-      with_items:
-        - virtualbox
+        - postgres
 
     ####
     # Concourse Directories
     ####
-    - name: Create ~/concourse
+    - name: Create Concourse Web and Worker Key Directories
       file:
-        path: ~/concourse
+        path: ~/workspace/concourse/keys/{web, worker}
         state: directory
         owner: pivotal
         group: staff
         mode: "u+rwx,go+rx"
 
-    - name: Create ~/concourse/postgres-data
-      file:
-        path: ~/concourse/postgres-data
-        state: directory
-
-    - name: Create Concourse Web Key Directory
-      file:
-        path: ~/concourse/keys/web
-        state: directory 
-    
-    - name: Create Concourse Worker Key Directory
-      file:
-        path: ~/concourse/keys/worker
-        state: directory 
-
-    - name: Create Concourse Docker Directory
-      file:
-        path: ~/concourse/docker
-        state: directory 
-    
     ####
     # Concourse Keys
     ####
     - name: Generate Host Key
       shell: ssh-keygen -t rsa -f tsa_host_key -N ''
       args:
-        chdir: ~/concourse/keys/web
+        chdir: ~/workspace/concourse/keys
         creates: tsa_host_key
-    
+
     - name: Generate Session Signing Key
       shell: ssh-keygen -t rsa -f session_signing_key -N ''
       args:
-        chdir: ~/concourse/keys/web
+        chdir: ~/workspace/concourse/keys
         creates: session_signing_key
-    
+
     - name: Generate Worker Key
       shell: ssh-keygen -t rsa -f worker_key -N ''
       args:
-        chdir: ~/concourse/keys/worker
+        chdir: ~/workspace/concourse/keys
         creates: worker_key
-    
-    - name: Create authorized_keys
-      shell: cp worker/worker_key.pub web/authorized_worker_keys
-      args:
-        chdir: ~/concourse/keys
-        creates: authorized_worker_keys
 
-    - name: Copy Host Key Into Worker Key Directory
-      shell: cp web/tsa_host_key.pub worker/tsa_host_key.pub
+    - name: Create authorized_keys
+      shell: cp worker_key.pub authorized_worker_keys
       args:
-        chdir: ~/concourse/keys
-        creates: tsa_host_key.pub
+        chdir: ~/workspace/concourse/keys
+        creates: authorized_worker_keys
 
     ####
     # Concourse Server & Workers
     ####
-    - name: Create docker-machine "default" If It Doesn't Exist
-      shell: if docker-machine ls | tail -n 1 | xargs echo -n | grep -q "default"; then echo -n 1; else echo "Creating default docker-machine" && docker-machine create --driver virtualbox default; fi
-      register: command_result
-      changed_when: command_result.stdout != 1
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
 
-    - name: Copy Docker Compose Files
-      copy:
-        src: ../docker/docker-compose.yml
-        dest: ~/concourse/docker
+    - name: Init Postgres DB
+      shell: if [[ -d /usr/local/var/postgres ]]; then echo TRUE ; else echo FALSE; fi
+      args:
+        creates: /usr/local/var/postgres
 
-    - name: Start Default docker-machine If Not Already Running
-      shell: if docker-machine ls | tail -n 1 | xargs echo -n | grep -i -q "running"; then echo -n 1; else echo "Restarting docker-machine" && docker-machine restart default; fi
-      register: command_result
-      changed_when: command_result.stdout != 1
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
-
-    - name: Read docker-machine ip
-      shell: docker-machine ip
-      register: DOCKER_MACHINE_IP_RESULT
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
-
-    - name: Read DOCKER_TLS_VERIFY Env Var
-      shell: docker-machine env | grep DOCKER_TLS_VERIFY | sed 's/export DOCKER_TLS_VERIFY=//' | sed 's/"//g'
-      register: DOCKER_TLS_VERIFY_RESULT
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
-
-    - name: Read DOCKER_HOST Env Var
-      shell: docker-machine env | grep DOCKER_HOST | sed 's/export DOCKER_HOST=//' | sed 's/"//g'
-      register: DOCKER_HOST_RESULT
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
-
-    - name: Read DOCKER_CERT_PATH Env Var
-      shell: docker-machine env | grep DOCKER_CERT_PATH | sed 's/export DOCKER_CERT_PATH=//' | sed 's/"//g'
-      register: DOCKER_CERT_PATH_RESULT
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
-
-    - name: Read DOCKER_MACHINE_NAME Env Var
-      shell: docker-machine env | grep DOCKER_MACHINE_NAME | sed 's/export DOCKER_MACHINE_NAME=//' | sed 's/"//g'
-      register: DOCKER_MACHINE_NAME_RESULT
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
-
-    - name: Get Relative Concourse Directory
-      shell: cd ~/concourse && pwd
-      register: CONCOURSE_PWD_RESULT
-
-    - name: Recreate Concourse Docker Containers
-      shell: cd {{ CONCOURSE_PWD_RESULT.stdout }}/docker && docker-compose stop && docker-compose rm -f && docker-compose up -d
-      environment:
-        CONCOURSE_EXTERNAL_URL: "{{ DOCKER_MACHINE_IP_RESULT.stdout }}"
-        DOCKER_TLS_VERIFY: "{{ DOCKER_TLS_VERIFY_RESULT.stdout }}"
-        DOCKER_HOST: "{{ DOCKER_HOST_RESULT.stdout }}"
-        DOCKER_CERT_PATH: "{{ DOCKER_CERT_PATH_RESULT.stdout }}"
-        DOCKER_MACHINE_NAME: "{{ DOCKER_MACHINE_NAME_RESULT.stdout }}"
-        CONCOURSE_USERNAME: "{{ CONCOURSE_USERNAME }}"
-        CONCOURSE_PASSWORD: "{{ CONCOURSE_PASSWORD }}"
-        PATH: /usr/local/bin:/usr/bin:/bin
+    - name: Create Concourse atc Postgres DB
+      shell: if [[ -z {{ "$(psql -Atqc '\list atc' postgres)" }} ]]; then createdb -e atc; fi
+      register: concourse_atc_result
+      changed_when: "concourse_atc_result.stdout != ''"
 
     - name: Install Concourse Darwin Binary
       get_url:
-        url: https://github.com/concourse/concourse/releases/download/v3.0.1/concourse_darwin_amd64
+        url: https://github.com/concourse/concourse/releases/download/v3.5.0/concourse_darwin_amd64
         dest: /usr/local/bin/concourse
         mode: ugo+x,u+rw,g+r
 
-    - name: Create MacOS Concourse Worker Log Directory
-      file:
-        path: /var/log/concourse
-        state: directory 
+    - name: Install Concourse Web Launchd Service
+      copy:
+        src: ../launchd/com.pivotal.tokyo.concourse.web.plist
+        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist
       become: true
 
-    - name: Touch MacOS Concourse Worker Access Log
-      file:
-        path: /var/log/concourse/mac-worker-stdout.log
-        state: touch
-        mode: "ugo+rwx"
+    - name: Install Concourse Worker Launchd Service
+      copy:
+        src: ../launchd/com.pivotal.tokyo.concourse.worker.plist
+        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.plist
       become: true
 
-    - name: Touch MacOS Concourse Worker Error Log
-      file:
-        path: /var/log/concourse/mac-worker-stderr.log
-        state: touch
-        mode: "ugo+rwx"
+    - name: Stop MacOS Concourse Web
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.web) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist && echo "STOPPING CONCOURSE WEB"; fi
       become: true
+      register: launchctl_web_unload_result
+      changed_when: "launchctl_web_unload_result.stdout != ''"
 
-    - name: Kill Stale MacOS Concourse Workers
-      shell: if ps aux | grep -v 'grep' | grep /usr/local/bin/concourse; then ps aux | grep -v 'grep' | grep /usr/local/bin/concourse | awk '{print $2}' | xargs kill; fi 
+    - name: Start MacOS Concourse Web
+      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist && echo "STARTING CONCOURSE WEB"
       become: true
+      register: launchctl_web_load_result
+      changed_when: "launchctl_web_load_result.stdout != ''"
+
+    - name: Stop MacOS Concourse Worker
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.plist && echo "STOPPING CONCOURSE WORKER"; fi
+      become: true
+      register: launchctl_worker_unload_result
+      changed_when: "launchctl_worker_unload_result.stdout != ''"
 
     - name: Start MacOS Concourse Worker
-      shell: nohup /usr/local/bin/concourse worker --work-dir /opt/concourse/worker --tsa-host {{ DOCKER_MACHINE_IP_RESULT.stdout }} --tsa-public-key "{{ CONCOURSE_PWD_RESULT.stdout }}"/keys/worker/tsa_host_key.pub --tsa-worker-private-key "{{ CONCOURSE_PWD_RESULT.stdout }}"/keys/worker/worker_key >> /var/log/concourse/mac-worker-stdout.log 2> /var/log/concourse/mac-worker-stderr.log &
+      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.plist && echo "STARTING CONCOURSE WORKER"
       become: true
-
-    ####
-    # Reverse Proxy
-    ####
-    - name: Update "docker-machine-host" In Hosts File
-      lineinfile:
-        path: /etc/hosts
-        regexp: 'docker-machine-host$'
-        line: '{{ DOCKER_MACHINE_IP_RESULT.stdout }} docker-machine-host'
-      become: true
-
-    - name: Copy Nginx Files
-      copy:
-        src: ../nginx/concourse-host
-        dest: /usr/local/etc/nginx/servers/
-
-    - name: Create Nginx Log Directory
-      file:
-        path: /var/log/nginx
-        state: directory 
-      become: true
-
-    - name: Touch Nginx Access Log
-      file:
-        path: /var/log/nginx/access.log
-        state: touch
-        mode: "ugo+rwx"
-      become: true
-
-    - name: Touch Nginx Error Log
-      file:
-        path: /var/log/nginx/error.log
-        state: touch
-        mode: "ugo+rwx"
-      become: true
-
-    - name: Enable Nginx 
-      shell: brew services restart nginx
-      environment:
-        PATH: /usr/local/bin/:/usr/bin:/bin
+      register: launchctl_worker_load_result
+      changed_when: "launchctl_worker_load_result.stdout != ''"

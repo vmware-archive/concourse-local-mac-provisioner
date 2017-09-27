@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND="/usr/local/bin/ansible-playbook -i $1, -K"
+CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND="/usr/local/bin/ansible-playbook -i $1, -K -v"
 
 if [ $1 == "localhost" ]
 then
@@ -15,8 +15,13 @@ else
     CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND+=$ANSIBLE_FLAG_USERNAME
 fi
 
-CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND+=" concourse-playbook.yml"
+CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND+=" ansible/concourse-playbook.yml"
 
 $CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND
 
-echo "Concourse is now running at: http://$1:8000"
+if [ $? -eq 0 ]
+then
+    echo "Concourse is now running at: http://$1:8080 😎"
+else
+    echo "Could not run concourse provisioner script" >&2
+fi

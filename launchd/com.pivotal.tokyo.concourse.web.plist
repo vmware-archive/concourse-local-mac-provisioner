@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pivotal.tokyo.concourse.web</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/concourse</string>
+        <string>web</string>
+        <string>--basic-auth-username</string>
+        <string>pivotal</string>
+        <string>--basic-auth-password</string>
+        <string>pivotal</string>
+        <string>--session-signing-key</string>
+        <string>/Users/pivotal/concourse/keys/session_signing_key</string>
+        <string>--tsa-host-key</string>
+        <string>/Users/pivotal/concourse/keys/tsa_host_key</string>
+        <string>--tsa-authorized-keys</string>
+        <string>/Users/pivotal/concourse/keys/authorized_worker_keys</string>
+        <string>--postgres-user</string>
+        <string>pivotal</string>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/pivotal/concourse-web-out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/pivotal/concourse-web-err.log</string>
+    <key>UserName</key>
+    <string>pivotal</string>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>

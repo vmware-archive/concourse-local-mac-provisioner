@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pivotal.tokyo.concourse.worker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/concourse</string>
+        <string>worker</string>
+        <string>--work-dir</string>
+        <string>/opt/concourse/worker</string>
+        <string>--tsa-host</string>
+        <string>127.0.0.1</string>
+        <string>--tsa-public-key</string>
+        <string>/Users/pivotal/concourse/keys/tsa_host_key.pub</string>
+        <string>--tsa-worker-private-key</string>
+        <string>/Users/pivotal/concourse/keys/worker_key</string>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/pivotal/concourse-worker-out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/pivotal/concourse-worker-err.log</string>
+    <key>UserName</key>
+    <string>pivotal</string>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
