@@ -28,7 +28,9 @@ If you're deploying locally, then they are the same. Otherwise, if you're deploy
 ## Tool Dependencies
 
 This tool requires the following packages installed on the control machine in order to run:
-  * [ansible](http://docs.ansible.com/ansible/)
+  * [xcode command line tools](https://developer.apple.com/xcode/) - must be downloaded from either the MacOS App Store or Apple's developer site
+  * [homebrew](https://brew.sh)
+  * [ansible](http://docs.ansible.com/ansible/) - can be installed via "brew install ansible"
 
 It also requires the following packages to be installed on the target machine:
   * [xcode command line tools](https://developer.apple.com/xcode/) - must be downloaded from either the MacOS App Store or Apple's developer site
