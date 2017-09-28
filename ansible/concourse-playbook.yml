@@ -17,17 +17,17 @@
     # Stop Concourse
     ####
     - name: Stop MacOS Concourse Web
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.web) ]]; then launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.web.plist && echo "STOPPING CONCOURSE WEB"; fi
+      shell: if [[ -n $(/bin/launchctl list | /usr/bin/grep com.pivotal.tokyo.concourse.web) ]]; then /bin/launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.web.plist && /bin/echo "STOPPING CONCOURSE WEB"; fi
       register: launchctl_web_unload_result
       changed_when: "launchctl_web_unload_result.stdout != ''"
 
     - name: Stop MacOS Concourse Darwin Worker
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.darwin) ]]; then launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STOPPING CONCOURSE DARWIN WORKER"; fi
+      shell: if [[ -n $(/bin/launchctl list | /usr/bin/grep com.pivotal.tokyo.concourse.worker.darwin) ]]; then /bin/launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.darwin.plist && /bin/echo "STOPPING CONCOURSE DARWIN WORKER"; fi
       register: launchctl_darwin_worker_unload_result
       changed_when: "launchctl_darwin_worker_unload_result.stdout != ''"
 
     - name: Stop Docker Concourse Linux Worker
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.linux) ]]; then launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STOPPING CONCOURSE LINUX WORKER"; fi
+      shell: if [[ -n $(/bin/launchctl list | /usr/bin/grep com.pivotal.tokyo.concourse.worker.linux) ]]; then /bin/launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist && /bin/echo "STOPPING CONCOURSE LINUX WORKER"; fi
       register: launchctl_linux_worker_unload_result
       changed_when: "launchctl_linux_worker_unload_result.stdout != ''"
 
@@ -93,33 +93,31 @@
     # Concourse Keys
     ####
     - name: Generate Host Key
-      shell: ssh-keygen -t rsa -f tsa_host_key -N ''
+      shell: /usr/bin/ssh-keygen -t rsa -f tsa_host_key -N ''
       args:
         chdir: ~/workspace/concourse/keys
         creates: tsa_host_key
 
     - name: Generate Session Signing Key
-      shell: ssh-keygen -t rsa -f session_signing_key -N ''
+      shell: /usr/bin/ssh-keygen -t rsa -f session_signing_key -N ''
       args:
         chdir: ~/workspace/concourse/keys
         creates: session_signing_key
 
     - name: Generate Darwin Worker Key
-      shell: ssh-keygen -t rsa -f darwin_worker_key -N ''
+      shell: /usr/bin/ssh-keygen -t rsa -f darwin_worker_key -N ''
       args:
         chdir: ~/workspace/concourse/keys/darwin-worker
         creates: darwin_worker_key
 
     - name: Generate Linux Worker Key
-      shell: ssh-keygen -t rsa -f linux_worker_key -N ''
+      shell: /usr/bin/ssh-keygen -t rsa -f linux_worker_key -N ''
       args:
         chdir: ~/workspace/concourse/keys/linux-worker
         creates: linux_worker_key
 
     - name: Copy TSA Host Key for Linux Worker
-      copy:
-        src: ~/workspace/concourse/keys/tsa_host_key.pub
-        dest: ~/workspace/concourse/keys/linux-worker/tsa_host_key.pub
+      shell: cp ~/workspace/concourse/keys/tsa_host_key.pub ~/workspace/concourse/keys/linux-worker/tsa_host_key.pub
 
     - name: Clean authorized_worker_keys
       file:
@@ -127,12 +125,12 @@
         path: ~/workspace/concourse/keys/authorized_worker_keys
 
     - name: Add darwin-worker-key to authorized_worker_keys
-      shell: cat darwin-worker/darwin_worker_key.pub >> authorized_worker_keys
+      shell: /bin/cat darwin-worker/darwin_worker_key.pub >> authorized_worker_keys
       args:
         chdir: ~/workspace/concourse/keys
 
     - name: Add linux-worker-key to authorized_keys
-      shell: cat linux-worker/linux_worker_key.pub >> authorized_worker_keys
+      shell: /bin/cat linux-worker/linux_worker_key.pub >> authorized_worker_keys
       args:
         chdir: ~/workspace/concourse/keys
 
@@ -141,12 +139,12 @@
     ####
 
     - name: Restart postgres service
-      shell: if [[ $(brew services list | grep postgresql | awk '{print $2}') -ne "started" ]]; then brew services restart postgresql; fi
+      shell: if [[ $(/usr/local/bin/brew services list | /usr/bin/grep postgresql | /usr/bin/awk '{print $2}') -ne "started" ]]; then /usr/local/bin/brew services restart postgresql; fi
       register: brew_services_postgres_running_result
       changed_when: "brew_services_postgres_running_result.stdout != ''"
 
-    - name: Restart docker-machine service
-      shell: if [[ $(brew services list | grep docker-machine | awk '{print $2}') -ne "started" ]]; then brew services restart docker-machine; fi
+    - name: Restart /usr/local/bin/docker-machine service
+      shell: if [[ $(/usr/local/bin/brew services list | /usr/bin/grep /usr/local/bin/docker-machine | /usr/bin/awk '{print $2}') -ne "started" ]]; then /usr/local/bin/brew services restart docker-machine; fi
       register: brew_services_docker_machine_running_result
       changed_when: "brew_services_docker_machine_running_result.stdout != ''"
 
@@ -155,7 +153,7 @@
     ####
 
     - name: Init Postgres DB
-      shell: if [[ -d /usr/local/var/postgres ]]; then echo ''; else initdb /usr/local/var/postgres && brew services restart postgresql; fi
+      shell: if [[ -d /usr/local/var/postgres ]]; then /bin/echo ''; else /usr/local/bin/initdb /usr/local/var/postgres && /usr/local/bin/brew services restart postgresql; fi
       args:
         creates: /usr/local/var/postgres
 
@@ -164,7 +162,7 @@
     ####
 
     - name: Create Concourse atc Postgres DB
-      shell: if [[ -z {{ "$(psql -Atqc '\list atc' postgres)" }} ]]; then createdb -e atc; fi
+      shell: if [[ -z {{ "$(/usr/local/bin/psql -Atqc '\list atc' postgres)" }} ]]; then /usr/local/bin/createdb -e atc; fi
       register: concourse_atc_result
       changed_when: "concourse_atc_result.stdout != ''"
 
@@ -189,22 +187,24 @@
         dest: ~/workspace/concourse/docker/
         mode: ugo+x,u+rw,g+r
 
-    - name: Restart default docker-machine
-      shell: if [[ $(docker-machine ls | grep default | awk '{print $4}') -ne "Running" ]]; then docker-machine restart default; fi
+    - name: Restart default /usr/local/bin/docker-machine
+      shell: if [[ $(/usr/local/bin/docker-machine ls | /usr/bin/grep default | /usr/bin/awk '{print $4}') -ne "Running" ]]; then /usr/local/bin/docker-machine restart default; fi
       register: docker_machine_restart_default_result
       changed_when: "docker_machine_restart_default_result.stdout != ''"
 
-    - name: Create docker-machine "default" If It Doesn't Exist
-      shell: if [[ -z $(docker-machine ls | grep default) ]]; then docker-machine create --driver virtualbox default; fi
+    - name: Create /usr/local/bin/docker-machine "default" If It Doesn't Exist
+      shell: if [[ -z $(/usr/local/bin/docker-machine ls | /usr/bin/grep default) ]]; then /usr/local/bin/docker-machine create --driver virtualbox default; fi
       register: docker_machine_create_result
       changed_when: "docker_machine_create_result.stdout != ''"
       environment:
         PATH: /usr/local/bin/:/usr/bin:/bin
 
     - name: Remove Old Docker Containers
-      shell: docker-clean run | grep "No" | wc -l | tr -d ' '
+      shell: eval $(/usr/local/bin/docker-machine env) && /usr/local/bin/docker-clean run | /usr/bin/grep "No" | /usr/bin/wc -l | /usr/bin/tr -d ' '
       register: docker_clean_result
       changed_when: "docker_machine_restart_default_result.stdout != '4'"
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/usr/local/bin"
 
     ####
     # Setup Concourse Web
@@ -220,13 +220,14 @@
     # Concourse Password
     ####
 
-    - name: Remove Old Concourse Password from Keychain
-      shell: if [[ $(security find-generic-password -l concourse_local -g) ]]; then security delete-generic-password -l concourse_local; fi
-      register: security_delete_concourse_password
-      changed_when: "security_delete_concourse_password.stdout != ''"
+    - name: Clear Concourse Password
+      file:
+        state: absent
+        path: ~/workspace/concourse/.env
+        mode: ug+r,u+rw
 
-    - name: Store Concourse Password in Keychain
-      shell: security add-generic-password -a pivotal -s concourse_local -l concourse_local -w "{{ CONCOURSE_PASSWORD }}"
+    - name: Store Concourse Password
+      shell: /bin/echo "export CONCOURSE_PASSWORD='{{ CONCOURSE_PASSWORD }}'" >> ~/workspace/concourse/.env
 
     ####
     # Launch Concourse
@@ -248,16 +249,16 @@
         dest: ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist
 
     - name: Start MacOS Concourse Web
-      shell: launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.web.plist && echo "STARTING CONCOURSE WEB"
+      shell: /bin/launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.web.plist && /bin/echo "STARTING CONCOURSE WEB"
       register: launchctl_web_load_result
       changed_when: "launchctl_web_load_result.stdout != ''"
 
     - name: Start MacOS Concourse Darwin Worker
-      shell: launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STARTING CONCOURSE DARWIN WORKER"
+      shell: /bin/launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.darwin.plist && /bin/echo "STARTING CONCOURSE DARWIN WORKER"
       register: launchctl_darwin_worker_load_result
       changed_when: "launchctl_darwin_worker_load_result.stdout != ''"
 
     - name: Start MacOS Concourse Linux Worker
-      shell: launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STARTING CONCOURSE LINUX WORKER"
+      shell: /bin/launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist && /bin/echo "STARTING CONCOURSE LINUX WORKER"
       register: launchctl_linux_worker_load_result
       changed_when: "launchctl_linux_worker_load_result.stdout != ''"
