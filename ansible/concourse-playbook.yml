@@ -1,5 +1,16 @@
 - hosts: all
 
+  ####
+  # Concourse Authentication
+  ####
+  vars_prompt:
+
+    - name: "CONCOURSE_PASSWORD"
+      prompt: "desired concourse password"
+      private: yes
+      confirm: yes
+      default: pivotal
+
   tasks:
 
     ####
@@ -194,6 +205,28 @@
       shell: docker-clean run | grep "No" | wc -l | tr -d ' '
       register: docker_clean_result
       changed_when: "docker_machine_restart_default_result.stdout != '4'"
+
+    ####
+    # Setup Concourse Web
+    ####
+
+    - name: Copy Web Startup Script
+      copy:
+        src: ../scripts/
+        dest: ~/workspace/concourse/scripts/
+        mode: ugo+x,u+rw,g+r
+
+    ####
+    # Concourse Password
+    ####
+
+    - name: Remove Old Concourse Password from Keychain
+      shell: if [[ $(security find-generic-password -l concourse_local -g) ]]; then security delete-generic-password -l concourse_local; fi
+      register: security_delete_concourse_password
+      changed_when: "security_delete_concourse_password.stdout != ''"
+
+    - name: Store Concourse Password in Keychain
+      shell: security add-generic-password -a pivotal -s concourse_local -l concourse_local -w "{{ CONCOURSE_PASSWORD }}"
 
     ####
     # Launch Concourse
