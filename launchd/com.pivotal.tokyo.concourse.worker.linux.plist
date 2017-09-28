@@ -9,9 +9,9 @@
         <string>/Users/pivotal/workspace/concourse/docker/docker-service.sh</string>
     </array>
     <key>StandardOutPath</key>
-    <string>/var/log/concourse/linux-worker-stdout.log</string>
+    <string>/usr/local/var/log/concourse/linux-worker-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/concourse/linux-worker-stderr.log</string>
+    <string>/usr/local/var/log/concourse/linux-worker-stderr.log</string>
     <key>KeepAlive</key>
     <true/>
 </dict>

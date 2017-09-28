@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND="/usr/local/bin/ansible-playbook -i $1, -K -v"
+CONCOURSE_LOCAL_MAC_PROVISIONER_COMMAND="/usr/local/bin/ansible-playbook -i $1, -v"
 
 if [ $1 == "localhost" ]
 then

@@ -22,9 +22,9 @@
         <string>pivotal</string>
     </array>
     <key>StandardOutPath</key>
-    <string>/var/log/concourse/web-stdout.log</string>
+    <string>/usr/local/var/log/concourse/web-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/concourse/web-stderr.log</string>
+    <string>/usr/local/var/log/concourse/web-stderr.log</string>
     <key>KeepAlive</key>
     <true/>
 </dict>

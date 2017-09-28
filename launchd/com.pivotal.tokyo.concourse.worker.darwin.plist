@@ -9,7 +9,7 @@
         <string>/usr/local/bin/concourse</string>
         <string>worker</string>
         <string>--work-dir</string>
-        <string>/opt/concourse/worker</string>
+        <string>/usr/local/opt/concourse/worker</string>
         <string>--tsa-host</string>
         <string>127.0.0.1</string>
         <string>--tsa-public-key</string>
@@ -18,9 +18,9 @@
         <string>/Users/pivotal/workspace/concourse/keys/darwin-worker/darwin_worker_key</string>
     </array>
     <key>StandardOutPath</key>
-    <string>/var/log/concourse/darwin-worker-stdout.log</string>
+    <string>/usr/local/var/log/concourse/darwin-worker-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/concourse/darwin-worker-stderr.log</string>
+    <string>/usr/local/var/log/concourse/darwin-worker-stderr.log</string>
     <key>KeepAlive</key>
     <true/>
 </dict>

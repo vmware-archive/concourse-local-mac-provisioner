@@ -6,20 +6,17 @@
     # Stop Concourse
     ####
     - name: Stop MacOS Concourse Web
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.web) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist && echo "STOPPING CONCOURSE WEB"; fi
-      become: true
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.web) ]]; then launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.web.plist && echo "STOPPING CONCOURSE WEB"; fi
       register: launchctl_web_unload_result
       changed_when: "launchctl_web_unload_result.stdout != ''"
 
     - name: Stop MacOS Concourse Darwin Worker
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.darwin) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STOPPING CONCOURSE DARWIN WORKER"; fi
-      become: true
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.darwin) ]]; then launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STOPPING CONCOURSE DARWIN WORKER"; fi
       register: launchctl_darwin_worker_unload_result
       changed_when: "launchctl_darwin_worker_unload_result.stdout != ''"
 
     - name: Stop Docker Concourse Linux Worker
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.linux) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STOPPING CONCOURSE LINUX WORKER"; fi
-      become: true
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.linux) ]]; then launchctl unload ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STOPPING CONCOURSE LINUX WORKER"; fi
       register: launchctl_linux_worker_unload_result
       changed_when: "launchctl_linux_worker_unload_result.stdout != ''"
 
@@ -36,6 +33,7 @@
         - docker
         - docker-machine
         - docker-compose
+        - docker-clean
 
     - name: Install Homebrew Casks
       homebrew_cask:
@@ -74,9 +72,11 @@
 
     - name: Create Concourse Log Directory
       file:
-        path: /var/log/concourse
+        path: /usr/local/var/log/concourse
         state: directory
-      become: true
+        owner: pivotal
+        group: staff
+        mode: "u+rwx,go+rx"
 
     ####
     # Concourse Keys
@@ -130,17 +130,21 @@
     ####
 
     - name: Restart postgres service
-      command: brew services restart postgresql
+      shell: if [[ $(brew services list | grep postgresql | awk '{print $2}') -ne "started" ]]; then brew services restart postgresql; fi
+      register: brew_services_postgres_running_result
+      changed_when: "brew_services_postgres_running_result.stdout != ''"
 
     - name: Restart docker-machine service
-      command: brew services restart docker-machine
+      shell: if [[ $(brew services list | grep docker-machine | awk '{print $2}') -ne "started" ]]; then brew services restart docker-machine; fi
+      register: brew_services_docker_machine_running_result
+      changed_when: "brew_services_docker_machine_running_result.stdout != ''"
 
     ####
     # Postgres
     ####
 
     - name: Init Postgres DB
-      shell: if [[ -d /usr/local/var/postgres ]]; then echo TRUE ; else echo FALSE; fi
+      shell: if [[ -d /usr/local/var/postgres ]]; then echo ''; else initdb /usr/local/var/postgres && brew services restart postgresql; fi
       args:
         creates: /usr/local/var/postgres
 
@@ -153,9 +157,14 @@
       register: concourse_atc_result
       changed_when: "concourse_atc_result.stdout != ''"
 
+    - name: Prune Outdated Concourse Darwin Binary
+      shell: if [[ -e /usr/local/bin/concourse && $(/usr/local/bin/concourse --version) != "3.0.1" ]]; then rm -v /usr/local/bin/concourse; fi
+      register: concourse_binary_rm_result
+      changed_when: "concourse_binary_rm_result.stdout != ''"
+
     - name: Install Concourse Darwin Binary
       get_url:
-        url: https://github.com/concourse/concourse/releases/download/v3.5.0/concourse_darwin_amd64
+        url: https://github.com/concourse/concourse/releases/download/v3.0.1/concourse_darwin_amd64
         dest: /usr/local/bin/concourse
         mode: ugo+x,u+rw,g+r
 
@@ -170,7 +179,9 @@
         mode: ugo+x,u+rw,g+r
 
     - name: Restart default docker-machine
-      command: docker-machine restart default
+      shell: if [[ $(docker-machine ls | grep default | awk '{print $4}') -ne "Running" ]]; then docker-machine restart default; fi
+      register: docker_machine_restart_default_result
+      changed_when: "docker_machine_restart_default_result.stdout != ''"
 
     - name: Create docker-machine "default" If It Doesn't Exist
       shell: if [[ -z $(docker-machine ls | grep default) ]]; then docker-machine create --driver virtualbox default; fi
@@ -179,6 +190,11 @@
       environment:
         PATH: /usr/local/bin/:/usr/bin:/bin
 
+    - name: Remove Old Docker Containers
+      shell: docker-clean run | grep "No" | wc -l | tr -d ' '
+      register: docker_clean_result
+      changed_when: "docker_machine_restart_default_result.stdout != '4'"
+
     ####
     # Launch Concourse
     ####
@@ -186,35 +202,29 @@
     - name: Install Concourse Web Launchd Service
       copy:
         src: ../launchd/com.pivotal.tokyo.concourse.web.plist
-        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist
-      become: true
+        dest: ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.web.plist
 
     - name: Install Concourse Darwin Worker Launchd Service
       copy:
         src: ../launchd/com.pivotal.tokyo.concourse.worker.darwin.plist
-        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist
-      become: true
+        dest: ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.darwin.plist
 
     - name: Install Concourse Linux Worker Launchd Service
       copy:
         src: ../launchd/com.pivotal.tokyo.concourse.worker.linux.plist
-        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.linux.plist
-      become: true
+        dest: ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist
 
     - name: Start MacOS Concourse Web
-      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist && echo "STARTING CONCOURSE WEB"
-      become: true
+      shell: launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.web.plist && echo "STARTING CONCOURSE WEB"
       register: launchctl_web_load_result
       changed_when: "launchctl_web_load_result.stdout != ''"
 
     - name: Start MacOS Concourse Darwin Worker
-      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STARTING CONCOURSE DARWIN WORKER"
-      become: true
+      shell: launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STARTING CONCOURSE DARWIN WORKER"
       register: launchctl_darwin_worker_load_result
       changed_when: "launchctl_darwin_worker_load_result.stdout != ''"
 
     - name: Start MacOS Concourse Linux Worker
-      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STARTING CONCOURSE LINUX WORKER"
-      become: true
+      shell: launchctl load ~/Library/LaunchAgents/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STARTING CONCOURSE LINUX WORKER"
       register: launchctl_linux_worker_load_result
       changed_when: "launchctl_linux_worker_load_result.stdout != ''"
