@@ -3,6 +3,27 @@
   tasks:
 
     ####
+    # Stop Concourse
+    ####
+    - name: Stop MacOS Concourse Web
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.web) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist && echo "STOPPING CONCOURSE WEB"; fi
+      become: true
+      register: launchctl_web_unload_result
+      changed_when: "launchctl_web_unload_result.stdout != ''"
+
+    - name: Stop MacOS Concourse Darwin Worker
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.darwin) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STOPPING CONCOURSE DARWIN WORKER"; fi
+      become: true
+      register: launchctl_darwin_worker_unload_result
+      changed_when: "launchctl_darwin_worker_unload_result.stdout != ''"
+
+    - name: Stop Docker Concourse Linux Worker
+      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.linux) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STOPPING CONCOURSE LINUX WORKER"; fi
+      become: true
+      register: launchctl_linux_worker_unload_result
+      changed_when: "launchctl_linux_worker_unload_result.stdout != ''"
+
+    ####
     # Packages
     ####
     - name: Install Homebrew General Packages
@@ -12,13 +33,40 @@
         update_homebrew: yes
       with_items:
         - postgres
+        - docker
+        - docker-machine
+        - docker-compose
+
+    - name: Install Homebrew Casks
+      homebrew_cask:
+        name: "{{ item }}"
+        state: present
+        update_homebrew: yes
+      with_items:
+        - virtualbox
 
     ####
     # Concourse Directories
     ####
-    - name: Create Concourse Web and Worker Key Directories
+    - name: Create Concourse Darwin Worker Key Directory
       file:
-        path: ~/workspace/concourse/keys/{web, worker}
+        path: ~/workspace/concourse/keys/darwin-worker
+        state: directory
+        owner: pivotal
+        group: staff
+        mode: "u+rwx,go+rx"
+
+    - name: Create Concourse Linux Worker Key Directory
+      file:
+        path: ~/workspace/concourse/keys/linux-worker
+        state: directory
+        owner: pivotal
+        group: staff
+        mode: "u+rwx,go+rx"
+
+    - name: Create Concourse Docker Directory
+      file:
+        path: ~/workspace/concourse/docker
         state: directory
         owner: pivotal
         group: staff
@@ -48,23 +96,57 @@
     - name: Generate Darwin Worker Key
       shell: ssh-keygen -t rsa -f darwin_worker_key -N ''
       args:
-        chdir: ~/workspace/concourse/keys
+        chdir: ~/workspace/concourse/keys/darwin-worker
         creates: darwin_worker_key
 
-    - name: Create authorized_keys
-      shell: cp darwin_worker_key.pub authorized_darwin_worker_keys
+    - name: Generate Linux Worker Key
+      shell: ssh-keygen -t rsa -f linux_worker_key -N ''
+      args:
+        chdir: ~/workspace/concourse/keys/linux-worker
+        creates: linux_worker_key
+
+    - name: Copy TSA Host Key for Linux Worker
+      copy:
+        src: ~/workspace/concourse/keys/tsa_host_key.pub
+        dest: ~/workspace/concourse/keys/linux-worker/tsa_host_key.pub
+
+    - name: Clean authorized_worker_keys
+      file:
+        state: absent
+        path: ~/workspace/concourse/keys/authorized_worker_keys
+
+    - name: Add darwin-worker-key to authorized_worker_keys
+      shell: cat darwin-worker/darwin_worker_key.pub >> authorized_worker_keys
       args:
         chdir: ~/workspace/concourse/keys
-        creates: authorized_darwin_worker_keys
+
+    - name: Add linux-worker-key to authorized_keys
+      shell: cat linux-worker/linux_worker_key.pub >> authorized_worker_keys
+      args:
+        chdir: ~/workspace/concourse/keys
 
     ####
-    # Concourse Server & Workers
+    # Homebrew Services
+    ####
+
+    - name: Restart postgres service
+      command: brew services restart postgresql
+
+    - name: Restart docker-machine service
+      command: brew services restart docker-machine
+
+    ####
+    # Postgres
     ####
 
     - name: Init Postgres DB
       shell: if [[ -d /usr/local/var/postgres ]]; then echo TRUE ; else echo FALSE; fi
       args:
         creates: /usr/local/var/postgres
+
+    ####
+    # Install Concourse Web & Darwin Worker
+    ####
 
     - name: Create Concourse atc Postgres DB
       shell: if [[ -z {{ "$(psql -Atqc '\list atc' postgres)" }} ]]; then createdb -e atc; fi
@@ -76,6 +158,30 @@
         url: https://github.com/concourse/concourse/releases/download/v3.5.0/concourse_darwin_amd64
         dest: /usr/local/bin/concourse
         mode: ugo+x,u+rw,g+r
+
+    ####
+    # Setup Concourse Linux Worker
+    ####
+
+    - name: Copy Docker Files
+      copy:
+        src: ../docker/
+        dest: ~/workspace/concourse/docker/
+        mode: ugo+x,u+rw,g+r
+
+    - name: Restart default docker-machine
+      command: docker-machine restart default
+
+    - name: Create docker-machine "default" If It Doesn't Exist
+      shell: if [[ -z $(docker-machine ls | grep default) ]]; then docker-machine create --driver virtualbox default; fi
+      register: docker_machine_create_result
+      changed_when: "docker_machine_create_result.stdout != ''"
+      environment:
+        PATH: /usr/local/bin/:/usr/bin:/bin
+
+    ####
+    # Launch Concourse
+    ####
 
     - name: Install Concourse Web Launchd Service
       copy:
@@ -89,11 +195,11 @@
         dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist
       become: true
 
-    - name: Stop MacOS Concourse Web
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.web) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist && echo "STOPPING CONCOURSE WEB"; fi
+    - name: Install Concourse Linux Worker Launchd Service
+      copy:
+        src: ../launchd/com.pivotal.tokyo.concourse.worker.linux.plist
+        dest: /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.linux.plist
       become: true
-      register: launchctl_web_unload_result
-      changed_when: "launchctl_web_unload_result.stdout != ''"
 
     - name: Start MacOS Concourse Web
       shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.web.plist && echo "STARTING CONCOURSE WEB"
@@ -101,14 +207,14 @@
       register: launchctl_web_load_result
       changed_when: "launchctl_web_load_result.stdout != ''"
 
-    - name: Stop MacOS Concourse Darwin Worker
-      shell: if [[ -n $(launchctl list | grep com.pivotal.tokyo.concourse.worker.darwin) ]]; then launchctl unload /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STOPPING CONCOURSE DARWIN WORKER"; fi
-      become: true
-      register: launchctl_darwin_worker_unload_result
-      changed_when: "launchctl_darwin_worker_unload_result.stdout != ''"
-
     - name: Start MacOS Concourse Darwin Worker
       shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.darwin.plist && echo "STARTING CONCOURSE DARWIN WORKER"
       become: true
       register: launchctl_darwin_worker_load_result
       changed_when: "launchctl_darwin_worker_load_result.stdout != ''"
+
+    - name: Start MacOS Concourse Linux Worker
+      shell: launchctl load /Library/LaunchDaemons/com.pivotal.tokyo.concourse.worker.linux.plist && echo "STARTING CONCOURSE LINUX WORKER"
+      become: true
+      register: launchctl_linux_worker_load_result
+      changed_when: "launchctl_linux_worker_load_result.stdout != ''"

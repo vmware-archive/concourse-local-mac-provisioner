@@ -13,9 +13,9 @@
         <string>--tsa-host</string>
         <string>127.0.0.1</string>
         <string>--tsa-public-key</string>
-        <string>/Users/pivotal/concourse/keys/tsa_host_key.pub</string>
+        <string>/Users/pivotal/workspace/concourse/keys/tsa_host_key.pub</string>
         <string>--tsa-worker-private-key</string>
-        <string>/Users/pivotal/concourse/keys/worker_key</string>
+        <string>/Users/pivotal/workspace/concourse/keys/darwin-worker/darwin_worker_key</string>
     </array>
     <key>StandardOutPath</key>
     <string>/var/log/concourse/darwin-worker-stdout.log</string>

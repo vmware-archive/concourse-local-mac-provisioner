@@ -13,11 +13,11 @@
         <string>--basic-auth-password</string>
         <string>pivotal</string>
         <string>--session-signing-key</string>
-        <string>/Users/pivotal/concourse/keys/session_signing_key</string>
+        <string>/Users/pivotal/workspace/concourse/keys/session_signing_key</string>
         <string>--tsa-host-key</string>
-        <string>/Users/pivotal/concourse/keys/tsa_host_key</string>
+        <string>/Users/pivotal/workspace/concourse/keys/tsa_host_key</string>
         <string>--tsa-authorized-keys</string>
-        <string>/Users/pivotal/concourse/keys/authorized_worker_keys</string>
+        <string>/Users/pivotal/workspace/concourse/keys/authorized_worker_keys</string>
         <string>--postgres-user</string>
         <string>pivotal</string>
     </array>
