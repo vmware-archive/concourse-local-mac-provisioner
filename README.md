@@ -35,6 +35,7 @@ This tool requires the following packages installed on the control machine in or
 It also requires the following packages to be installed on the target machine:
   * [xcode command line tools](https://developer.apple.com/xcode/) - must be downloaded from either the MacOS App Store or Apple's developer site
   * [homebrew](https://brew.sh)
+  * [virtualbox](https://www.virtualbox.org) - can be installed via "brew cask install virtualbox" (this has an interactive installer)
 
 ## Examples:
 

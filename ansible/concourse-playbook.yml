@@ -135,20 +135,6 @@
         chdir: ~/workspace/concourse/keys
 
     ####
-    # Homebrew Services
-    ####
-
-    - name: Restart postgres service
-      shell: if [[ $(/usr/local/bin/brew services list | /usr/bin/grep postgresql | /usr/bin/awk '{print $2}') -ne "started" ]]; then /usr/local/bin/brew services restart postgresql; fi
-      register: brew_services_postgres_running_result
-      changed_when: "brew_services_postgres_running_result.stdout != ''"
-
-    - name: Restart /usr/local/bin/docker-machine service
-      shell: if [[ $(/usr/local/bin/brew services list | /usr/bin/grep /usr/local/bin/docker-machine | /usr/bin/awk '{print $2}') -ne "started" ]]; then /usr/local/bin/brew services restart docker-machine; fi
-      register: brew_services_docker_machine_running_result
-      changed_when: "brew_services_docker_machine_running_result.stdout != ''"
-
-    ####
     # Postgres
     ####
 
@@ -156,6 +142,11 @@
       shell: if [[ -d /usr/local/var/postgres ]]; then /bin/echo ''; else /usr/local/bin/initdb /usr/local/var/postgres && /usr/local/bin/brew services restart postgresql; fi
       args:
         creates: /usr/local/var/postgres
+
+    - name: Restart postgres service
+      shell: if [[ $(/usr/local/bin/brew services list | /usr/bin/grep postgresql | /usr/bin/awk '{print $2}') != "started" ]]; then /usr/local/bin/brew services restart postgresql; fi
+      register: brew_services_postgres_running_result
+      changed_when: "brew_services_postgres_running_result.stdout != ''"
 
     ####
     # Install Concourse Web & Darwin Worker
@@ -187,10 +178,10 @@
         dest: ~/workspace/concourse/docker/
         mode: ugo+x,u+rw,g+r
 
-    - name: Restart default /usr/local/bin/docker-machine
-      shell: if [[ $(/usr/local/bin/docker-machine ls | /usr/bin/grep default | /usr/bin/awk '{print $4}') -ne "Running" ]]; then /usr/local/bin/docker-machine restart default; fi
-      register: docker_machine_restart_default_result
-      changed_when: "docker_machine_restart_default_result.stdout != ''"
+    - name: Restart /usr/local/bin/docker-machine service
+      shell: if [[ $(/usr/local/bin/brew services list | /usr/bin/grep /usr/local/bin/docker-machine | /usr/bin/awk '{print $2}') != "started" ]]; then /usr/local/bin/brew services restart docker-machine; fi
+      register: brew_services_docker_machine_running_result
+      changed_when: "brew_services_docker_machine_running_result.stdout != ''"
 
     - name: Create /usr/local/bin/docker-machine "default" If It Doesn't Exist
       shell: if [[ -z $(/usr/local/bin/docker-machine ls | /usr/bin/grep default) ]]; then /usr/local/bin/docker-machine create --driver virtualbox default; fi
@@ -198,6 +189,11 @@
       changed_when: "docker_machine_create_result.stdout != ''"
       environment:
         PATH: /usr/local/bin/:/usr/bin:/bin
+
+    - name: Restart default /usr/local/bin/docker-machine
+      shell: if [[ $(/usr/local/bin/docker-machine ls | /usr/bin/grep default | /usr/bin/awk '{print $4}') != "Running" ]]; then /usr/local/bin/docker-machine restart default; fi
+      register: docker_machine_restart_default_result
+      changed_when: "docker_machine_restart_default_result.stdout != ''"
 
     - name: Remove Old Docker Containers
       shell: eval $(/usr/local/bin/docker-machine env) && /usr/local/bin/docker-clean run | /usr/bin/grep "No" | /usr/bin/wc -l | /usr/bin/tr -d ' '
